@@ -1,0 +1,8 @@
+*.json
+*.log
+*.jpg
+*.so
+*.out
+*.test
+.env
+vendor/
