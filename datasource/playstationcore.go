@@ -15,7 +15,6 @@ import (
 
 	"github.com/olegpolukhin/go_ps_scraping/config"
 	filetool "github.com/olegpolukhin/go_ps_scraping/file"
-	"github.com/olegpolukhin/go_ps_scraping/logger"
 	. "github.com/olegpolukhin/go_ps_scraping/models"
 	stringtool "github.com/olegpolukhin/go_ps_scraping/stringtool"
 	"github.com/olegpolukhin/go_ps_scraping/taskmanager"
@@ -50,8 +49,7 @@ func PsGetUpdateDiscountedGamesTask() taskmanager.SingleTask {
 
 func PsInitForPublication() {
 	gamesForPublicationPs, _ = PsLoadGamesFromRepo("notYetPublished", 0, 0)
-	// fmt.Println("PsInitForPublication.Inited - " + strconv.Itoa(len(gamesForPublicationPs)) + " games ready.")
-	logger.Write("PsInitForPublication.Inited - " + strconv.Itoa(len(gamesForPublicationPs)) + " games ready.")
+	// logger.Write("PsInitForPublication.Inited - " + strconv.Itoa(len(gamesForPublicationPs)) + " games ready.")
 }
 
 func PsGetRandomDiscountedGame() (game GameGeneral) {
@@ -78,8 +76,6 @@ func PsUpdateGameStatusInRepo(globalId string, isAlreadyPublished bool) {
 	if gameIndex >= 0 {
 		gamesFromRepo[gameIndex].AlreadyPublished = isAlreadyPublished
 		PsSaveGamesToRepository(gamesFromRepo)
-	} else {
-		return
 	}
 }
 
@@ -100,8 +96,6 @@ func PsParseDiscountedGames() (games []GameGeneral) {
 
 	var baseURLSales = config.GetEnv.BaseURLSales
 	var baseURLSalesParam = config.GetEnv.BaseURLSalesParam
-
-	log.Println("sss", fmt.Sprintf("%s%s%s", baseURLSales, strconv.Itoa(startPageNumber), baseURLSalesParam))
 
 	response, err := http.Get(fmt.Sprintf("%s%s%s", baseURLSales, strconv.Itoa(startPageNumber), baseURLSalesParam))
 	if err != nil {
@@ -217,9 +211,7 @@ func psExtractGamesFromRawArray(gamesRawDataArray []string, startCounter int) (g
 		gameHeaderRaw = stringtool.ExtractBetween("3x", "4x", gameHeaderRaw)
 		gameHeaderRaw = strings.Replace(gameHeaderRaw, " ", "", -1)
 		gameHeaderRaw = strings.Replace(gameHeaderRaw, ",", "", 1)
-		// fmt.Println("Header 1st " + gameHeaderRaw)
 		gameHeaderRaw = strings.Replace(gameHeaderRaw, "\u0026amp;", "&", -1)
-		// fmt.Println("Header 2nd " + gameHeaderRaw)
 		games = append(games, GameGeneral{
 			config.GetEnv.GameIDPrefix + strconv.Itoa(counter),
 			gameName,
@@ -235,7 +227,6 @@ func psExtractGamesFromRawArray(gamesRawDataArray []string, startCounter int) (g
 			[]int{},
 			false,
 		})
-		// fmt.Println("Extracted game : " + gameName)
 		counter++
 	}
 	endCounter = counter

@@ -8,7 +8,6 @@ import (
 
 	config "github.com/olegpolukhin/go_ps_scraping/config"
 	datasource "github.com/olegpolukhin/go_ps_scraping/datasource"
-	logger "github.com/olegpolukhin/go_ps_scraping/logger"
 	taskmanager "github.com/olegpolukhin/go_ps_scraping/taskmanager"
 	telegramBot "github.com/olegpolukhin/go_ps_scraping/telegram"
 
@@ -26,7 +25,7 @@ func initENV() {
 
 func main() {
 	initENV()
-	logger.Init()
+	// logger.Init()
 
 	fmt.Println("Search core started. time start: ", time.Now().Format("2006.01.02 15:04:05"))
 	exitChannel := make(chan string)
@@ -91,9 +90,9 @@ func main() {
 					fmt.Println("Network error, mb can`t create request")
 				case "discounts.update":
 					fmt.Println("All discounts is updated. PlayStation.")
-					logger.Write("All discounts is updated. PlayStation.")
+					// logger.Write("All discounts is updated. PlayStation.")
 				default:
-					logger.Write(msg)
+					// logger.Write(msg)
 				}
 			}
 		}

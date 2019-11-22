@@ -3,27 +3,24 @@ package telegram
 import (
 	"fmt"
 	"log"
-	"github.com/olegpolukhin/go_ps_scraping/logger"
-	"github.com/olegpolukhin/go_ps_scraping/models"
 	"strconv"
 	"time"
 
+	"github.com/olegpolukhin/go_ps_scraping/models"
+
 	datasource "github.com/olegpolukhin/go_ps_scraping/datasource"
-	"github.com/olegpolukhin/go_ps_scraping/file"
 	taskmanager "github.com/olegpolukhin/go_ps_scraping/taskmanager"
 
 	telegramApi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 var mBot *telegramApi.BotAPI
-var KEY = "1043462173:AAGVqh6R0Nk0-kW0mQAX5k8JiT8Rib-OY7g"
 var minimumMetacriticScore int64 = 0
 var postingPeriod int64
 var postingPeriodType = "hour"
 var bot *telegramApi.BotAPI
 
 var TESTING_CHANNEL_NAME = "@game_demo_ps"
-var TESTING_CHANNEL_CHAT_ID int64 = -77777777777
 
 var CHANNEL_PS_NAME = "@game_demo_ps"
 var CHANNEL_CHAT_ID int64 = -77777777777
@@ -31,8 +28,6 @@ var CHANNEL_CHAT_ID int64 = -77777777777
 var POSTING_START_HOUR = 10
 var POSTING_END_HOUR = 19
 
-var steamPostingStarted = false
-var gogPostingStarted = false
 var psPostingStarted = false
 
 type PostGameDiscount struct {
@@ -96,12 +91,12 @@ func genegateBundlePostFromSource(fromSourceType string, bundleSize int) (gamePo
 	return gamePostBundle, gamePostBundleCovers
 }
 
-// BotServerProcess service by sent channel
+// BotServerProcess service by sent to channel telegramm
 func BotServerProcess(inKey string, controlChannel chan string) {
 	var err error
 	bot, err = telegramApi.NewBotAPI(inKey)
 	if err != nil {
-		log.Panic("NewBotAPI", err)
+		log.Panic("NewBotAPI: ", err)
 	}
 	mBot = bot
 	mBot.Debug = true
@@ -165,19 +160,20 @@ func GetPsPostingPeriodicTask(taskControlChannel chan string) taskmanager.Single
 				msgString += "\nСсылка: " + somePost.GameURL
 				msgMain := telegramApi.NewMessageToChannel(CHANNEL_PS_NAME, msgString)
 				if somePost.HeaderTitle != "" {
-					file.DownloadImage(somePost.GameCoverURL, "cover_ps.jpg", func() {
-						msgCover := telegramApi.NewPhotoUpload(CHANNEL_CHAT_ID, "cover_ps.jpg")
-						bot.Send(msgCover)
-						bot.Send(msgMain)
-					})
+					// file.DownloadImage(somePost.GameCoverURL, "cover_ps.jpg", func() {
+					// 	msgCover := telegramApi.NewPhotoUpload(CHANNEL_CHAT_ID, "cover_ps.jpg")
+					// 	bot.Send(msgCover)
+					// 	bot.Send(msgMain)
+					// })
+					bot.Send(msgMain)
 				} else {
 					bot.Send(msgMain)
 				}
 			})
 			psPostingStarted = true
-			logger.Write("PsPostingPeriodicTask - ps posting initial started")
+			// logger.Write("PsPostingPeriodicTask - ps posting initial started")
 		} else {
-			logger.Write("PsPostingPeriodicTask - ps posting already started, skiping")
+			// logger.Write("PsPostingPeriodicTask - ps posting already started, skiping")
 		}
 	}
 }
