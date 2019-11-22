@@ -36,10 +36,10 @@ func New() *Config {
 }
 
 // Simple helper function to read an environment or return a default value
-func getEnvStr(key string, defaultVal string) string {
+func getEnvStr(key, defaultVal string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
 	}
-
+	// всегда возвращяет пустую строук нет необходимости использовать для этого переменную
 	return defaultVal
 }

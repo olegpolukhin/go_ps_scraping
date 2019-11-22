@@ -36,12 +36,21 @@ func CloseFile(file *os.File) {
 }
 
 func AppendToFile(file *os.File, stringToAppend string) {
-	file.WriteString(stringToAppend)
+	_, err := file.WriteString(stringToAppend)
+	if err != nil {
+		// нет обработки
+	}
 }
 
 func AppendToFileAndClose(file *os.File, stringToAppend string) {
-	file.WriteString(stringToAppend)
-	file.Close()
+	_, err := file.WriteString(stringToAppend)
+	if err != nil {
+		// нет обработки
+	}
+	err = file.Close()
+	if err != nil {
+		// нет обработки
+	}
 }
 
 func ReadImage(imagePath string) (outImage image.Image) {
@@ -61,7 +70,10 @@ func SaveImage(imagePath string, targetImage image.Image) {
 	imageFile := CreateFile(imagePath)
 	defer CloseFile(imageFile)
 
-	png.Encode(imageFile, targetImage)
+	err := png.Encode(imageFile, targetImage)
+	if err != nil {
+		// нет обработки
+	}
 }
 
 func DownloadImage(imageURL string, imageName string, callback DownloadCallback) {

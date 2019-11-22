@@ -78,23 +78,24 @@ func main() {
 		playStationBundlePostingTask,
 	)
 
+	// тут можно использовать for range exitChannel
 	for {
 		select {
 		case msg := <-exitChannel:
-			{
-				switch msg {
-				case "end":
-					fmt.Println("All tasks finished")
-					os.Exit(0)
-				case "error.network":
-					fmt.Println("Network error, mb can`t create request")
-				case "discounts.update":
-					fmt.Println("All discounts is updated. PlayStation.")
-					// logger.Write("All discounts is updated. PlayStation.")
-				default:
-					// logger.Write(msg)
-				}
+			// { // лишние скобки
+			switch msg {
+			case "end":
+				fmt.Println("All tasks finished")
+				os.Exit(0)
+			case "error.network":
+				fmt.Println("Network error, mb can`t create request")
+			case "discounts.update":
+				fmt.Println("All discounts is updated. PlayStation.")
+				// logger.Write("All discounts is updated. PlayStation.")
+			default:
+				// logger.Write(msg)
 			}
+			// }
 		}
 	}
 }
