@@ -131,6 +131,9 @@ func PsParseDiscountedGames() (games []GameGeneral) {
 
 			// Copy data from the response to standard output
 			pageBody, err := ioutil.ReadAll(response.Body)
+			if err != nil {
+				// нет обработки ошибок
+			}
 			defer response.Body.Close()
 
 			pageBodyString := string(pageBody)
@@ -189,10 +192,10 @@ func psExtractGamesFromRawArray(gamesRawDataArray []string, startCounter int) (g
 				diff := float64(oldPrice - gamePrice)
 				gameDiscount = int64((diff / float64(oldPrice)) * 100)
 			}
-		} else {
+		} else { // этот else можно сократить
 			if gameDiscountString == "" {
 				gameDiscount = 0
-			} else {
+			} else { // и этот
 				gameDiscountString = re.FindAllString(gameDiscountString, 1)[0]
 				gameDiscount, err = strconv.ParseInt(gameDiscountString, 10, 14)
 				if err != nil {
@@ -284,7 +287,10 @@ func PsLoadGamesFromRepo(loadArgument string, discountBorder int64, discountRang
 
 	for _, object := range jsonObjects.Array() {
 		var tmpGame GameGeneral
-		json.Unmarshal([]byte(object.String()), &tmpGame)
+		err := json.Unmarshal([]byte(object.String()), &tmpGame)
+		if err != nil {
+			// нет обработки
+		}
 
 		switch loadArgument {
 		case "all":

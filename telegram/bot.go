@@ -15,9 +15,10 @@ import (
 )
 
 var mBot *telegramApi.BotAPI
-var minimumMetacriticScore int64 = 0
-var postingPeriod int64
-var postingPeriodType = "hour"
+var minimumMetacriticScore int64 = 0 // не обязаельно присваивать 0 это значение по умолчанию
+
+// var postingPeriod int64// unuse
+// var postingPeriodType = "hour" // unuse
 var bot *telegramApi.BotAPI
 
 var TESTING_CHANNEL_NAME = "@game_demo_ps"
@@ -44,7 +45,7 @@ func GeneratePostFromSource(fromSourceType string) (newPost PostGameDiscount, sc
 	var gameTitle = ""
 	var gameName = ""
 	var priceString = ""
-
+	// тут switch можно заменить на if
 	switch fromSourceType {
 	case "ps":
 		gameToPost = datasource.PsGetRandomDiscountedGame()
@@ -80,7 +81,7 @@ func GeneratePostFromSource(fromSourceType string) (newPost PostGameDiscount, sc
 	return newPost, screenshots
 }
 
-func genegateBundlePostFromSource(fromSourceType string, bundleSize int) (gamePostBundle []PostGameDiscount, gamePostBundleCovers []string) {
+func genegateBundlePostFromSource(bundleSize int) (gamePostBundle []PostGameDiscount, gamePostBundleCovers []string) {
 	counter := 0
 	for counter < bundleSize {
 		gamePost, _ := GeneratePostFromSource("ps")
@@ -106,12 +107,17 @@ func BotServerProcess(inKey string, controlChannel chan string) {
 	log.Printf("Authorized as %s", mBot.Self.UserName)
 	fmt.Println("Telegram bot " + mBot.Self.UserName + " re/started, Time - " + time.Now().String())
 	msg := telegramApi.NewMessageToChannel(TESTING_CHANNEL_NAME, "Telegram bot "+mBot.Self.UserName+" re/started "+time.Now().String()+"\nAll configs lost")
-	bot.Send(msg)
-
+	_, err = bot.Send(msg)
+	if err != nil {
+		// нет обработки
+	}
 	var messageChannel = telegramApi.NewUpdate(0)
 	messageChannel.Timeout = 60
 
 	updates, err := mBot.GetUpdatesChan(messageChannel)
+	if err != nil {
+		// нет обработки ошибок
+	}
 
 	for update := range updates {
 		if update.Message == nil {
@@ -122,7 +128,10 @@ func BotServerProcess(inKey string, controlChannel chan string) {
 		switch messageText {
 		case "sendTest":
 			msg := telegramApi.NewMessageToChannel(TESTING_CHANNEL_NAME, "Empty test message")
-			bot.Send(msg)
+			_, err = bot.Send(msg)
+			if err != nil {
+				// нет обработки
+			}
 		case "game_ps":
 			somePost, _ := GeneratePostFromSource("ps")
 			msgString := somePost.HeaderTitle
@@ -131,7 +140,10 @@ func BotServerProcess(inKey string, controlChannel chan string) {
 			msgString += "\nСсылка: " + somePost.GameURL
 
 			msgMain := telegramApi.NewMessageToChannel(CHANNEL_PS_NAME, msgString)
-			bot.Send(msgMain)
+			_, err := bot.Send(msgMain)
+			if err != nil {
+				// нет обработки
+			}
 
 			// file.DownloadImage(somePost.GameCoverURL, "cover_ps.jpg", func() {
 			// 	msgCover := telegramApi.NewPhotoUpload(CHANNEL_CHAT_ID, "cover_ps.jpg")
@@ -165,9 +177,15 @@ func GetPsPostingPeriodicTask(taskControlChannel chan string) taskmanager.Single
 					// 	bot.Send(msgCover)
 					// 	bot.Send(msgMain)
 					// })
-					bot.Send(msgMain)
+					_, err := bot.Send(msgMain)
+					if err != nil {
+						// нет обработки
+					}
 				} else {
-					bot.Send(msgMain)
+					_, err := bot.Send(msgMain)
+					if err != nil {
+						// нет обработки
+					}
 				}
 			})
 			psPostingStarted = true
@@ -182,7 +200,7 @@ func GetPsPostGameBundleTask(bundleSize int) taskmanager.SingleTask {
 	return func() {
 		// var uploadedCovers []string
 		var postMessages []string
-		gamePostBundle, _ := genegateBundlePostFromSource("ps", bundleSize)
+		gamePostBundle, _ := genegateBundlePostFromSource(bundleSize)
 
 		for _, gamePost := range gamePostBundle {
 			msgString := "\n" + gamePost.GameTitle
@@ -200,7 +218,10 @@ func GetPsPostGameBundleTask(bundleSize int) taskmanager.SingleTask {
 			msgMain := telegramApi.NewMessageToChannel(CHANNEL_PS_NAME, message)
 			// msgCover := telegramApi.NewPhotoUpload(CHANNEL_CHAT_ID, uploadedCovers[index])
 			// bot.Send(msgCover)
-			bot.Send(msgMain)
+			_, err := bot.Send(msgMain)
+			if err != nil {
+				// нет обработки
+			}
 		}
 	}
 }
