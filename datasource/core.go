@@ -13,7 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/olegpolukhin/go_ps_scraping/config"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+
 	filetool "github.com/olegpolukhin/go_ps_scraping/file"
 	. "github.com/olegpolukhin/go_ps_scraping/models"
 	stringtool "github.com/olegpolukhin/go_ps_scraping/stringtool"
@@ -22,80 +24,79 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-var gamesForPublicationPs []GameGeneral
+var gamesForPublication []GameGeneral
 
-var activeRepositoryPs string
+var activeRepository string
 
-func PsSetActiveRepository(path string) {
-	activeRepositoryPs = path
+// SetActiveRepository .
+func SetActiveRepository(path string) {
+	activeRepository = path
 }
 
-func PsGetInitForPublicationTask() taskmanager.SingleTask {
+// GetInitForPublicationTask .
+func GetInitForPublicationTask() taskmanager.SingleTask {
 	return func() {
-		PsInitForPublication()
+		initForPublication()
 	}
 }
 
-func PsGetUpdateDiscountedGamesTask() taskmanager.SingleTask {
-	newGames := PsParseDiscountedGames()
-	if newGames != nil {
-		PsMegreAndSaveGamesToRepository(newGames)
-	}
+// GetUpdateDiscountedGamesTask .
+func GetUpdateDiscountedGamesTask() taskmanager.SingleTask {
 	return func() {
-		newGames := PsParseDiscountedGames()
-		PsMegreAndSaveGamesToRepository(newGames)
+		newGames := parseDiscountedGames()
+		megreAndSaveGamesToRepository(newGames)
 	}
 }
 
-func PsInitForPublication() {
-	gamesForPublicationPs, _ = PsLoadGamesFromRepo("notYetPublished", 0, 0)
-	// logger.Write("PsInitForPublication.Inited - " + strconv.Itoa(len(gamesForPublicationPs)) + " games ready.")
+func initForPublication() {
+	gamesForPublication, _ = loadGamesFromRepo("notYetPublished", 0, 0)
 }
 
-func PsGetRandomDiscountedGame() (game GameGeneral) {
-	gamesForPublicationPs, _ = PsLoadGamesFromRepo("notYetPublished", 0, 0)
-	if len(gamesForPublicationPs) == 0 {
+// GetRandomDiscountedGame .
+func GetRandomDiscountedGame() (game GameGeneral) {
+	gamesForPublication, _ = loadGamesFromRepo("notYetPublished", 0, 0)
+	if len(gamesForPublication) == 0 {
 		return
 	}
 
-	i := randomPs(0, len(gamesForPublicationPs))
-	game = gamesForPublicationPs[i]
-	copy(gamesForPublicationPs[i:], gamesForPublicationPs[i+1:])
-	gamesForPublicationPs = gamesForPublicationPs[:len(gamesForPublicationPs)-1]
-	PsUpdateGameStatusInRepo(game.GlobalID, true)
+	i := random(0, len(gamesForPublication))
+	game = gamesForPublication[i]
+	copy(gamesForPublication[i:], gamesForPublication[i+1:])
+	gamesForPublication = gamesForPublication[:len(gamesForPublication)-1]
+	updateGameStatusInRepo(game.GlobalID, true)
 
 	return game
 }
 
-func PsUpdateGameStatusInRepo(globalId string, isAlreadyPublished bool) {
-	gamesFromRepo, isRepoExist := PsLoadGamesFromRepo("all", 0, 0)
+func updateGameStatusInRepo(globalID string, isPublished bool) {
+	gamesFromRepo, isRepoExist := loadGamesFromRepo("all", 0, 0)
 	if !isRepoExist {
 		return
 	}
-	gameIndex := GetIndexByGlobalId(gamesFromRepo, globalId)
+	gameIndex := GetIndexByGlobalId(gamesFromRepo, globalID)
 	if gameIndex >= 0 {
-		gamesFromRepo[gameIndex].AlreadyPublished = isAlreadyPublished
-		PsSaveGamesToRepository(gamesFromRepo)
+		gamesFromRepo[gameIndex].AlreadyPublished = isPublished
+		saveGamesToRepository(gamesFromRepo)
 	}
 }
 
-func PsMegreAndSaveGamesToRepository(newGames []GameGeneral) {
-	oldGames, isRepoFileExist := PsLoadGamesFromRepo("all", 0, 0)
+func megreAndSaveGamesToRepository(newGames []GameGeneral) {
+	oldGames, isRepoFileExist := loadGamesFromRepo("all", 0, 0)
 	if !isRepoFileExist {
-		PsSaveGamesToRepository(newGames)
+		saveGamesToRepository(newGames)
 		fmt.Println("no games in repo")
 	} else {
 		fmt.Println("found games in repo")
 		mergedGames := MergeGameLists(oldGames, newGames)
-		PsSaveGamesToRepository(mergedGames)
+		saveGamesToRepository(mergedGames)
 	}
 }
 
-func PsParseDiscountedGames() (games []GameGeneral) {
+func parseDiscountedGames() (games []GameGeneral) {
 	startPageNumber := 1
 
-	var baseURLSales = config.GetEnv.BaseURLSales
-	var baseURLSalesParam = config.GetEnv.BaseURLSalesParam
+	var baseURLSales = viper.GetString("BASE_URL_SALES_PS")
+	var baseURLSalesParam = viper.GetString("BASE_URL_SALES_PARAM")
 
 	response, err := http.Get(fmt.Sprintf("%s%s%s", baseURLSales, strconv.Itoa(startPageNumber), baseURLSalesParam))
 	if err != nil {
@@ -110,14 +111,14 @@ func PsParseDiscountedGames() (games []GameGeneral) {
 	defer response.Body.Close()
 
 	pageBodyString := string(pageBody)
-	pagesCount := psGetDiscountPagesCount(pageBodyString)
+	pagesCount := getDiscountPagesCount(pageBodyString)
 
 	pageBodyString = stringtool.ExtractBetween("grid-cell-container", "grid-footer-controls", pageBodyString)
 	gamesRawDataArray := strings.Split(pageBodyString, "class=\"grid-cell grid-cell--game\">")
 	gamesRawDataArray = append(gamesRawDataArray[:0], gamesRawDataArray[0+1:]...)
-	fmt.Println("PlayStationCore.PsParseDiscountedGames - Found game pages = " + strconv.Itoa(pagesCount))
-	loadedGames, idCounter := psExtractGamesFromRawArray(gamesRawDataArray, 0)
-	fmt.Println("PlayStationCore.PsParseDiscountedGames - Found game pages = " + strconv.Itoa(len(loadedGames)))
+	fmt.Println("ParseDiscountedGames - Found game pages = " + strconv.Itoa(pagesCount))
+	loadedGames, idCounter := extractGamesFromRawArray(gamesRawDataArray, 0)
+	fmt.Println("ParseDiscountedGames - LoadedGames game pages = " + strconv.Itoa(len(loadedGames)))
 	games = append(games, loadedGames...)
 
 	if startPageNumber < pagesCount {
@@ -137,7 +138,7 @@ func PsParseDiscountedGames() (games []GameGeneral) {
 			pageBodyString = stringtool.ExtractBetween("grid-cell-container", "grid-footer-controls", pageBodyString)
 			gamesRawDataArray := strings.Split(pageBodyString, "class=\"grid-cell grid-cell--game\">")
 			gamesRawDataArray = append(gamesRawDataArray[:0], gamesRawDataArray[0+1:]...)
-			newGames, nextIDCounter := psExtractGamesFromRawArray(gamesRawDataArray, idCounter)
+			newGames, nextIDCounter := extractGamesFromRawArray(gamesRawDataArray, idCounter)
 			idCounter = nextIDCounter
 			games = append(games, newGames...)
 
@@ -149,7 +150,7 @@ func PsParseDiscountedGames() (games []GameGeneral) {
 	return games
 }
 
-func psExtractGamesFromRawArray(gamesRawDataArray []string, startCounter int) (games []GameGeneral, endCounter int) {
+func extractGamesFromRawArray(gamesRawDataArray []string, startCounter int) (games []GameGeneral, endCounter int) {
 	counter := 0
 	if startCounter != 0 {
 		counter = startCounter
@@ -213,14 +214,14 @@ func psExtractGamesFromRawArray(gamesRawDataArray []string, startCounter int) (g
 		gameHeaderRaw = strings.Replace(gameHeaderRaw, ",", "", 1)
 		gameHeaderRaw = strings.Replace(gameHeaderRaw, "\u0026amp;", "&", -1)
 		games = append(games, GameGeneral{
-			config.GetEnv.GameIDPrefix + strconv.Itoa(counter),
+			viper.GetString("GAME_PREFIX") + strconv.Itoa(counter),
 			gameName,
 			gameHeaderRaw,
 			false,
 			gameDiscount,
 			gamePrice,
 			gameLink,
-			config.GetEnv.GameSource,
+			viper.GetString("GAME_SOURCE"),
 			0,
 			0,
 			false,
@@ -233,13 +234,13 @@ func psExtractGamesFromRawArray(gamesRawDataArray []string, startCounter int) (g
 	return games, endCounter
 }
 
-func psGetDiscountPagesCount(rawPageBody string) (count int) {
+func getDiscountPagesCount(rawPageBody string) (count int) {
 	if strings.Contains(rawPageBody, "paginator-control__end paginator-control__arrow-navigation") {
 		var totalPagesString = strings.Split(rawPageBody, "paginator-control__end paginator-control__arrow-navigation")[0]
 		tmpArray := strings.Split(totalPagesString, "grid/STORE-MSF75508-PRICEDROPSCHI")
 		totalPagesString = tmpArray[len(tmpArray)-1]
 		totalPagesString = strings.Split(totalPagesString, "gameContentType=games")[0]
-		fmt.Println("Total PS pages string = " + totalPagesString)
+		logrus.Info("Total pages string = " + totalPagesString)
 		re := regexp.MustCompile("[0-9]+")
 		totalPagesString = re.FindAllString(totalPagesString, 1)[0]
 		var err error
@@ -253,8 +254,8 @@ func psGetDiscountPagesCount(rawPageBody string) (count int) {
 	return count
 }
 
-func PsSaveGamesToRepository(games []GameGeneral) {
-	gamesData := filetool.CreateFile(activeRepositoryPs)
+func saveGamesToRepository(games []GameGeneral) {
+	gamesData := filetool.CreateFile(activeRepository)
 	filetool.AppendToFile(gamesData, "{\n\"games\": [\n")
 	for index, game := range games {
 		gameString, _ := json.Marshal(game)
@@ -271,14 +272,13 @@ func PsSaveGamesToRepository(games []GameGeneral) {
 	filetool.CloseFile(gamesData)
 }
 
-func PsLoadGamesFromRepo(loadArgument string, discountBorder int64, discountRange int64) (games []GameGeneral, isRepoFileExist bool) {
-	isRepoFileExist = false
-	gamesListRaw, loadError := ioutil.ReadFile(activeRepositoryPs)
+func loadGamesFromRepo(loadArgument string, discountBorder int64, discountRange int64) (games []GameGeneral, isRepoFileExist bool) {
+	gamesListRaw, loadError := ioutil.ReadFile(activeRepository)
 	if loadError != nil {
 		return games, isRepoFileExist
-	} else {
-		isRepoFileExist = true
 	}
+
+	isRepoFileExist = true
 
 	jsonObjects := gjson.Get(string(gamesListRaw), "games")
 
@@ -307,7 +307,7 @@ func PsLoadGamesFromRepo(loadArgument string, discountBorder int64, discountRang
 	return games, isRepoFileExist
 }
 
-func randomPs(min, max int) int {
+func random(min, max int) int {
 	rand.Seed(time.Now().UnixNano())
 	return rand.Intn(max-min) + min
 }

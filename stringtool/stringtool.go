@@ -4,8 +4,7 @@ import (
 	"strings"
 )
 
-/*ExtractBetween ...
- */
+// ExtractBetween ...
 func ExtractBetween(startChars string, endChars string, initialString string) (result string) {
 	if !strings.Contains(initialString, startChars) && !strings.Contains(initialString, endChars) {
 		return

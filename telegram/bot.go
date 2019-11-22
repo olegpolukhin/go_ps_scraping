@@ -2,35 +2,22 @@ package telegram
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+
 	"github.com/olegpolukhin/go_ps_scraping/models"
 
+	telegramApi "github.com/go-telegram-bot-api/telegram-bot-api"
 	datasource "github.com/olegpolukhin/go_ps_scraping/datasource"
 	taskmanager "github.com/olegpolukhin/go_ps_scraping/taskmanager"
-
-	telegramApi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-var mBot *telegramApi.BotAPI
-var minimumMetacriticScore int64 = 0
-var postingPeriod int64
-var postingPeriodType = "hour"
 var bot *telegramApi.BotAPI
 
-var TESTING_CHANNEL_NAME = "@game_demo_ps"
-
-var CHANNEL_PS_NAME = "@game_demo_ps"
-var CHANNEL_CHAT_ID int64 = -77777777777
-
-var POSTING_START_HOUR = 10
-var POSTING_END_HOUR = 19
-
-var psPostingStarted = false
-
-type PostGameDiscount struct {
+type postGameDiscount struct {
 	HeaderTitle    string
 	GameTitle      string
 	DiscountString string
@@ -39,26 +26,21 @@ type PostGameDiscount struct {
 	GameURL        string
 }
 
-func GeneratePostFromSource(fromSourceType string) (newPost PostGameDiscount, screenshots []string) {
+func generatePostFromSource() (newPost postGameDiscount, screenshots []string) {
 	var gameToPost models.GameGeneral
-	var gameTitle = ""
-	var gameName = ""
 	var priceString = ""
 
-	switch fromSourceType {
-	case "ps":
-		gameToPost = datasource.PsGetRandomDiscountedGame()
-		gameTitle = "PlayStation Store, Скидки на сегодня"
-		gameName = gameToPost.Name
-		if strconv.FormatInt(gameToPost.Price, 10) == "0" {
-			priceString = "Перейдите по ссылке, чтобы узнать итоговую цену"
-		} else {
-			priceString = strconv.FormatInt(gameToPost.Price, 10)
-		}
+	gameToPost = datasource.GetRandomDiscountedGame()
+	gameTitle := "PlayStation Store, Скидки на сегодня"
+	gameName := gameToPost.Name
+	if strconv.FormatInt(gameToPost.Price, 10) == "0" {
+		priceString = "Перейдите по ссылке, чтобы узнать итоговую цену"
+	} else {
+		priceString = strconv.FormatInt(gameToPost.Price, 10)
 	}
 
 	if gameToPost.IsFree {
-		newPost = PostGameDiscount{
+		newPost = postGameDiscount{
 			gameTitle,
 			gameName,
 			"",
@@ -67,7 +49,7 @@ func GeneratePostFromSource(fromSourceType string) (newPost PostGameDiscount, sc
 			gameToPost.Link,
 		}
 	} else {
-		newPost = PostGameDiscount{
+		newPost = postGameDiscount{
 			gameTitle,
 			gameName,
 			strconv.FormatInt(gameToPost.Discount, 10),
@@ -77,16 +59,20 @@ func GeneratePostFromSource(fromSourceType string) (newPost PostGameDiscount, sc
 		}
 	}
 
-	return newPost, screenshots
+	return
 }
 
-func genegateBundlePostFromSource(fromSourceType string, bundleSize int) (gamePostBundle []PostGameDiscount, gamePostBundleCovers []string) {
+func genegateBundlePostFromSource(fromSourceType string, bundleSize int) (gamePostBundle []postGameDiscount, gamePostBundleCovers []string) {
 	counter := 0
 	for counter < bundleSize {
-		gamePost, _ := GeneratePostFromSource("ps")
+		gamePost, _ := generatePostFromSource()
+		if gamePost.GameTitle == "" {
+			return
+		}
 		gamePostBundle = append(gamePostBundle, gamePost)
 		gamePostBundleCovers = append(gamePostBundleCovers, gamePost.GameCoverURL)
 		counter++
+
 	}
 	return gamePostBundle, gamePostBundleCovers
 }
@@ -96,17 +82,44 @@ func BotServerProcess(inKey string, controlChannel chan string) {
 	var err error
 	bot, err = telegramApi.NewBotAPI(inKey)
 	if err != nil {
-		log.Panic("NewBotAPI: ", err)
+		logrus.Panic("BotServerProcess NewBotAPI error: ", err)
 	}
+
+	var mBot *telegramApi.BotAPI
+
 	mBot = bot
-	mBot.Debug = true
+	mBot.Debug = false
 
-	taskControlChannel := make(chan string)
+	botAuthMsg := fmt.Sprintf("Telegram bot %s re/started, Time - %s", mBot.Self.UserName, time.Now().String())
 
-	log.Printf("Authorized as %s", mBot.Self.UserName)
-	fmt.Println("Telegram bot " + mBot.Self.UserName + " re/started, Time - " + time.Now().String())
-	msg := telegramApi.NewMessageToChannel(TESTING_CHANNEL_NAME, "Telegram bot "+mBot.Self.UserName+" re/started "+time.Now().String()+"\nAll configs lost")
-	bot.Send(msg)
+	logrus.Info(fmt.Sprintf("Authorized as %s", mBot.Self.UserName))
+	logrus.Info(botAuthMsg)
+
+	if mBot.Debug {
+		msg := telegramApi.NewMessageToChannel(viper.GetString("CHANNEL_NAME"), botAuthMsg)
+		bot.Send(msg)
+	}
+}
+
+// BotWaitProcess .
+func BotWaitProcess(inKey string) {
+	var err error
+	bot, err = telegramApi.NewBotAPI(inKey)
+	if err != nil {
+		logrus.Panic("BotWaitProcess NewBotAPI error: ", err)
+	}
+
+	var mBot *telegramApi.BotAPI
+	mBot = bot
+	mBot.Debug = false
+
+	logrus.Info(fmt.Sprintf("Bot Wait Init. Authorized as %s", mBot.Self.UserName))
+
+	if mBot.Debug {
+		botAuthMsg := fmt.Sprintf("Telegram bot %s re/started, Time - %s", mBot.Self.UserName, time.Now().String())
+		msg := telegramApi.NewMessageToChannel(viper.GetString("CHANNEL_NAME"), botAuthMsg)
+		bot.Send(msg)
+	}
 
 	var messageChannel = telegramApi.NewUpdate(0)
 	messageChannel.Timeout = 60
@@ -121,68 +134,43 @@ func BotServerProcess(inKey string, controlChannel chan string) {
 
 		switch messageText {
 		case "sendTest":
-			msg := telegramApi.NewMessageToChannel(TESTING_CHANNEL_NAME, "Empty test message")
+			msg := telegramApi.NewMessageToChannel(viper.GetString("CHANNEL_NAME"), "Empty test message")
 			bot.Send(msg)
 		case "game_ps":
-			somePost, _ := GeneratePostFromSource("ps")
+			somePost, _ := generatePostFromSource()
 			msgString := somePost.HeaderTitle
 			msgString += "\n" + somePost.GameTitle
 			msgString += "\nСкидка: " + somePost.DiscountString + "% \nЦена: " + somePost.PriceString + " руб."
 			msgString += "\nСсылка: " + somePost.GameURL
 
-			msgMain := telegramApi.NewMessageToChannel(CHANNEL_PS_NAME, msgString)
+			msgMain := telegramApi.NewMessageToChannel(viper.GetString("CHANNEL_NAME"), msgString)
 			bot.Send(msgMain)
-
+			// var chatID int64 = -77777777777
 			// file.DownloadImage(somePost.GameCoverURL, "cover_ps.jpg", func() {
-			// 	msgCover := telegramApi.NewPhotoUpload(CHANNEL_CHAT_ID, "cover_ps.jpg")
+			// 	msgCover := telegramApi.NewPhotoUpload(chatID, "cover_ps.jpg")
 			// 	bot.Send(msgCover)
 			// 	bot.Send(msgMain)
 			// })
 		case "game_bundle_ps":
-			task := GetPsPostGameBundleTask(4)
+			task := SendPostGameBundleTask(3)
 			task()
-		case "stop_posting":
-			taskControlChannel <- "stop"
-		case "barguzin":
-			controlChannel <- "end"
+		default:
+			continue
 		}
 	}
 }
 
-func GetPsPostingPeriodicTask(taskControlChannel chan string) taskmanager.SingleTask {
-	return func() {
-		if !psPostingStarted {
-			go taskmanager.StartPeriodicTask(2, "hour", POSTING_START_HOUR, POSTING_END_HOUR, taskControlChannel, func() {
-				somePost, _ := GeneratePostFromSource("ps")
-				msgString := somePost.HeaderTitle
-				msgString += "\n" + somePost.GameTitle
-				msgString += "\nСкидка: " + somePost.DiscountString + "% \nЦена: " + somePost.PriceString + " руб."
-				msgString += "\nСсылка: " + somePost.GameURL
-				msgMain := telegramApi.NewMessageToChannel(CHANNEL_PS_NAME, msgString)
-				if somePost.HeaderTitle != "" {
-					// file.DownloadImage(somePost.GameCoverURL, "cover_ps.jpg", func() {
-					// 	msgCover := telegramApi.NewPhotoUpload(CHANNEL_CHAT_ID, "cover_ps.jpg")
-					// 	bot.Send(msgCover)
-					// 	bot.Send(msgMain)
-					// })
-					bot.Send(msgMain)
-				} else {
-					bot.Send(msgMain)
-				}
-			})
-			psPostingStarted = true
-			// logger.Write("PsPostingPeriodicTask - ps posting initial started")
-		} else {
-			// logger.Write("PsPostingPeriodicTask - ps posting already started, skiping")
-		}
-	}
-}
-
-func GetPsPostGameBundleTask(bundleSize int) taskmanager.SingleTask {
+// SendPostGameBundleTask send game Bundle
+func SendPostGameBundleTask(bundleSize int) taskmanager.SingleTask {
 	return func() {
 		// var uploadedCovers []string
 		var postMessages []string
 		gamePostBundle, _ := genegateBundlePostFromSource("ps", bundleSize)
+
+		if len(gamePostBundle) == 0 {
+			logrus.Warn("Game Bundle list is Empty!")
+			return
+		}
 
 		for _, gamePost := range gamePostBundle {
 			msgString := "\n" + gamePost.GameTitle
@@ -194,11 +182,13 @@ func GetPsPostGameBundleTask(bundleSize int) taskmanager.SingleTask {
 			// })
 		}
 
-		msgBundleHeader := telegramApi.NewMessageToChannel(CHANNEL_PS_NAME, "Бандл скидок PlayStation Store к этому часу!")
+		msgBundleHeader := telegramApi.NewMessageToChannel(viper.GetString("CHANNEL_NAME"), "Бандл скидок PlayStation Store к этому часу!")
 		bot.Send(msgBundleHeader)
+
 		for _, message := range postMessages {
-			msgMain := telegramApi.NewMessageToChannel(CHANNEL_PS_NAME, message)
-			// msgCover := telegramApi.NewPhotoUpload(CHANNEL_CHAT_ID, uploadedCovers[index])
+			msgMain := telegramApi.NewMessageToChannel(viper.GetString("CHANNEL_NAME"), message)
+			// var chatID int64 = -77777777777
+			// msgCover := telegramApi.NewPhotoUpload(chatID, uploadedCovers[index])
 			// bot.Send(msgCover)
 			bot.Send(msgMain)
 		}

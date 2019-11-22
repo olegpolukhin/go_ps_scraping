@@ -1,0 +1,10 @@
+BOT_KEY: "1043462173:AAGVqh6R0Nk0-kW0mQAX5k8JiT8Rib-OY7g"
+CHANNEL_NAME: "@game_demo_ps"
+LOG_WARN: logs.log
+GAME_LIST: "gameListPS_0.json"
+GAME_DISSCOUNTS: "game_list_discounts.json"
+GAME_SOURCE: "store.playstation.com"
+GAME_PREFIX: "PS_"
+BASE_URL_PS: "https://store.playstation.com"
+BASE_URL_SALES_PS: "https://store.playstation.com/ru-ru/grid/STORE-MSF75508-PRICEDROPSCHI/"
+BASE_URL_SALES_PARAM: "?gameContentType=games"
