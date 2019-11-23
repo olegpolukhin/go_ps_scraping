@@ -11,7 +11,7 @@ import (
 type PeriodicTask func()
 type SingleTask func()
 
-func CompleteTaskQueue(taskQueue []SingleTask, endMessage string, controlChannel chan string) {
+func TaskQueue(taskQueue []SingleTask, endMessage string, controlChannel chan string) {
 	for _, task := range taskQueue {
 		task()
 	}
@@ -37,10 +37,6 @@ func DoPeriodicTaskAtTime(timeToStart string, controlChannel chan string, task P
 	} else if minuteToStart < 0 || minuteToStart > 59 {
 		return
 	}
-
-	// if string(time.Now().Hour()) != timeToStartRaw[0] {
-	// 	return
-	// }
 
 	for {
 		select {

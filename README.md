@@ -20,17 +20,29 @@ go get -v
 
 You can change the contents of the config file `config.yml`
 
-Parametrs config:
-- GAME_LIST
-- GAME_DISSCOUNTS
-- GAME_SOURCE
-- GAME_PREFIX
-- BOT_KEY
-- LOG_WARN
-- CHANNEL_NAME
-- BASE_URL_PS
-- BASE_URL_SALES_PS
-- BASE_URL_SALES_PARAM
+Parametrs config with values by default:
+
+```
+GAME_LIST: "gameListPS_0.json"
+GAME_DISSCOUNTS: "game_list_discounts.json"
+GAME_SOURCE: "store.playstation.com"
+GAME_PREFIX: "PS_"
+
+BASE_URL_PS: "https://store.playstation.com"
+BASE_URL_SALES_PS: "https://store.playstation.com/ru-ru/grid/STORE-MSF75508-PRICEDROPSCHI/"
+BASE_URL_SALES_PARAM: "?gameContentType=games"
+
+PROXY_HOST: ""
+PROXY_PORT: 0
+PROXY_USER: ""
+PROXY_PASSWORD: ""
+
+BOT_KEY: "your_bot_api_key"
+
+CHANNEL_NAME: "@your_channel"
+
+LOG_WARN: "logs.log"
+```
 
 ## Run
 
@@ -44,3 +56,19 @@ go run main.go
 
 **[1.0.0] (2019-11-22) Warn:**
 This application is currently under development. I do not recommend using it now.
+
+
+link https://store.playstation.com/ru-ru/grid/STORE-MSF75508-PRICEDROPSCHI/1?gameContentType=games
+
+total pages 6
+
+data
+    attributes
+        total-results: 165
+    id: STORE-MSF75508-PRICEDROPSCHI
+
+included
+    0: {
+        type: game
+    }
+    ...

@@ -33,7 +33,6 @@ func initLogger() {
 		FullTimestamp:   true,
 		TimestampFormat: "2006-01-02 15:04:05",
 		ForceColors:     true,
-		ForceQuote:      true,
 	})
 }
 
@@ -43,7 +42,7 @@ func main() {
 
 	logrus.Info("App started")
 
-	go telegram.BotWaitProcess(viper.GetString("BOT_KEY"))
+	go telegram.BotServerProcess(viper.GetString("BOT_KEY"))
 
 	scheduler.StartScheduler()
 }

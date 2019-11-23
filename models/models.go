@@ -5,6 +5,15 @@ import (
 	"strings"
 )
 
+type PostGameDiscount struct {
+	HeaderTitle    string
+	GameTitle      string
+	DiscountString string
+	PriceString    string
+	GameCoverURL   string
+	GameURL        string
+}
+
 type GameGeneral struct {
 	GlobalID         string      `json:"GlobalID"`
 	Name             string      `json:"Name"`
@@ -46,7 +55,7 @@ func MergeGameLists(oldList []GameGeneral, newList []GameGeneral) (mergedList []
 	lastGlobalIDNumber++
 
 	for _, game := range newList {
-		if !ContainsGameGeneral(oldList, game) {
+		if !containsGameGeneral(oldList, game) {
 			game.GlobalID = strings.Split(game.GlobalID, "_")[0] + "_" + strconv.Itoa(lastGlobalIDNumber)
 			mergedList = append(mergedList, game)
 			lastGlobalIDNumber++
@@ -54,7 +63,7 @@ func MergeGameLists(oldList []GameGeneral, newList []GameGeneral) (mergedList []
 	}
 
 	for index, oldGame := range mergedList {
-		if !ContainsGameGeneral(newList, oldGame) {
+		if !containsGameGeneral(newList, oldGame) {
 			copy(mergedList[index:], mergedList[index+1:])
 			mergedList = mergedList[:len(mergedList)-1]
 		}
@@ -63,7 +72,7 @@ func MergeGameLists(oldList []GameGeneral, newList []GameGeneral) (mergedList []
 	return mergedList
 }
 
-func ContainsGameGeneral(listForCheck []GameGeneral, gameForCheck GameGeneral) bool {
+func containsGameGeneral(listForCheck []GameGeneral, gameForCheck GameGeneral) bool {
 	for _, game := range listForCheck {
 		if game.Link == gameForCheck.Link {
 			return true
