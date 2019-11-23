@@ -4,6 +4,7 @@
 *.so
 *.out
 *.test
+config.yml
 .env
 .vscode/
 vendor/

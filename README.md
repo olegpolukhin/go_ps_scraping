@@ -56,19 +56,3 @@ go run main.go
 
 **[1.0.0] (2019-11-22) Warn:**
 This application is currently under development. I do not recommend using it now.
-
-
-link https://store.playstation.com/ru-ru/grid/STORE-MSF75508-PRICEDROPSCHI/1?gameContentType=games
-
-total pages 6
-
-data
-    attributes
-        total-results: 165
-    id: STORE-MSF75508-PRICEDROPSCHI
-
-included
-    0: {
-        type: game
-    }
-    ...
