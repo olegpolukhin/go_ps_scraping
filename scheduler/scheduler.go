@@ -3,8 +3,8 @@ package scheduler
 import (
 	"os"
 
-	datasource "github.com/olegpolukhin/go_ps_scraping/datasource"
-	taskmanager "github.com/olegpolukhin/go_ps_scraping/taskmanager"
+	"github.com/olegpolukhin/go_ps_scraping/datasource"
+	"github.com/olegpolukhin/go_ps_scraping/taskmanager"
 	telegramBot "github.com/olegpolukhin/go_ps_scraping/telegram"
 
 	"github.com/sirupsen/logrus"
@@ -42,7 +42,7 @@ func StartScheduler() {
 	go taskmanager.DoPeriodicTaskAtTime(
 		"14:00",
 		exitChannel,
-		                       bbb     ,
+		playStationUpdateDiscountsTask,
 	)
 
 	go taskmanager.DoPeriodicTaskAtTime(

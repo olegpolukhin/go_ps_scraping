@@ -14,7 +14,7 @@ import (
 
 	telegramApi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/olegpolukhin/go_ps_scraping/datasource"
-	taskmanager "github.com/olegpolukhin/go_ps_scraping/taskmanager"
+	"github.com/olegpolukhin/go_ps_scraping/taskmanager"
 )
 
 var bot *telegramApi.BotAPI
