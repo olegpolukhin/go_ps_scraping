@@ -18,13 +18,13 @@ func StartScheduler() {
 	var fastStartTasks []taskmanager.SingleTask
 	var postingStartTasks []taskmanager.SingleTask
 
-	psGameFetchTask := datasource.GetUpdateDiscountedGamesTask()
-	psInitializationTask := datasource.GetInitForPublicationTask()
-	botPostingBundleTask := telegramBot.SendPostGameBundleTask(3)
+	getUpdateDiscountedTask := datasource.UpdateDiscountedGamesTask()
+	getInitPublicationTask := datasource.InitForPublicationTask()
+	botPostingBundleTask := telegramBot.SendPostGameBundleTask(viper.GetInt("GAME_BUNDLE"))
 
 	fastStartTasks = append(fastStartTasks,
-		psGameFetchTask,
-		psInitializationTask,
+		getUpdateDiscountedTask,
+		getInitPublicationTask,
 	)
 
 	postingStartTasks = append(postingStartTasks,
@@ -32,28 +32,27 @@ func StartScheduler() {
 	)
 
 	var playStationUpdateDiscountsTask taskmanager.PeriodicTask = func() {
-		taskmanager.CompleteTaskQueue(fastStartTasks, "discounts.update", exitChannel)
+		taskmanager.TaskQueue(fastStartTasks, "discounts.update", exitChannel)
 	}
 
 	var playStationBundlePostingTask taskmanager.PeriodicTask = func() {
-		telegramBot.BotServerProcess(viper.GetString("BOT_KEY"), exitChannel)
-		taskmanager.CompleteTaskQueue(postingStartTasks, "discounts.update", exitChannel)
+		taskmanager.TaskQueue(postingStartTasks, "discounts.update", exitChannel)
 	}
 
 	go taskmanager.DoPeriodicTaskAtTime(
-		"09:00",
+		"14:00",
 		exitChannel,
-		playStationUpdateDiscountsTask,
+		                       bbb     ,
 	)
 
 	go taskmanager.DoPeriodicTaskAtTime(
-		"12:00",
+		"09:00",
 		exitChannel,
 		playStationBundlePostingTask,
 	)
 
 	go taskmanager.DoPeriodicTaskAtTime(
-		"17:00",
+		"10:00",
 		exitChannel,
 		playStationBundlePostingTask,
 	)
@@ -69,8 +68,6 @@ func StartScheduler() {
 				case "error.network":
 					logrus.Error("Network error: Create request")
 				case "discounts.update":
-					datasource.GetUpdateDiscountedGamesTask()
-					datasource.GetInitForPublicationTask()
 					logrus.Info("All discounts is updated")
 				default:
 					logrus.Warning(msg)

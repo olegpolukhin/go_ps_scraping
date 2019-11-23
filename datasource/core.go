@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/viper"
 
 	filetool "github.com/olegpolukhin/go_ps_scraping/file"
+	"github.com/olegpolukhin/go_ps_scraping/models"
 	. "github.com/olegpolukhin/go_ps_scraping/models"
 	stringtool "github.com/olegpolukhin/go_ps_scraping/stringtool"
 	"github.com/olegpolukhin/go_ps_scraping/taskmanager"
@@ -33,15 +34,15 @@ func SetActiveRepository(path string) {
 	activeRepository = path
 }
 
-// GetInitForPublicationTask .
-func GetInitForPublicationTask() taskmanager.SingleTask {
+// InitForPublicationTask .
+func InitForPublicationTask() taskmanager.SingleTask {
 	return func() {
 		initForPublication()
 	}
 }
 
-// GetUpdateDiscountedGamesTask .
-func GetUpdateDiscountedGamesTask() taskmanager.SingleTask {
+// UpdateDiscountedGamesTask .
+func UpdateDiscountedGamesTask() taskmanager.SingleTask {
 	return func() {
 		newGames := parseDiscountedGames()
 		megreAndSaveGamesToRepository(newGames)
@@ -52,8 +53,60 @@ func initForPublication() {
 	gamesForPublication, _ = loadGamesFromRepo("notYetPublished", 0, 0)
 }
 
-// GetRandomDiscountedGame .
-func GetRandomDiscountedGame() (game GameGeneral) {
+// GeneratePostFromSource .
+func GeneratePostFromSource() (newPost PostGameDiscount, screenshots []string) {
+	var gameToPost models.GameGeneral
+	var priceString = ""
+
+	gameToPost = getRandomDiscountedGame()
+	gameTitle := "PlayStation Store, Скидки на сегодня"
+	gameName := gameToPost.Name
+	if strconv.FormatInt(gameToPost.Price, 10) == "0" {
+		priceString = "Перейдите по ссылке, чтобы узнать итоговую цену"
+	} else {
+		priceString = strconv.FormatInt(gameToPost.Price, 10)
+	}
+
+	if gameToPost.IsFree {
+		newPost = PostGameDiscount{
+			gameTitle,
+			gameName,
+			"",
+			"",
+			gameToPost.HeaderImageURL,
+			gameToPost.Link,
+		}
+	} else {
+		newPost = PostGameDiscount{
+			gameTitle,
+			gameName,
+			strconv.FormatInt(gameToPost.Discount, 10),
+			priceString,
+			gameToPost.HeaderImageURL,
+			gameToPost.Link,
+		}
+	}
+
+	return
+}
+
+// GenegateBundlePostFromSource .
+func GenegateBundlePostFromSource(bundleSize int) (gamePostBundle []PostGameDiscount, gamePostBundleCovers []string) {
+	counter := 0
+	for counter < bundleSize {
+		gamePost, _ := GeneratePostFromSource()
+		if gamePost.GameTitle == "" {
+			return
+		}
+		gamePostBundle = append(gamePostBundle, gamePost)
+		gamePostBundleCovers = append(gamePostBundleCovers, gamePost.GameCoverURL)
+		counter++
+
+	}
+	return gamePostBundle, gamePostBundleCovers
+}
+
+func getRandomDiscountedGame() (game GameGeneral) {
 	gamesForPublication, _ = loadGamesFromRepo("notYetPublished", 0, 0)
 	if len(gamesForPublication) == 0 {
 		return
@@ -106,7 +159,7 @@ func parseDiscountedGames() (games []GameGeneral) {
 
 	pageBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("ReadAll error: ", err)
 	}
 	defer response.Body.Close()
 
@@ -116,15 +169,15 @@ func parseDiscountedGames() (games []GameGeneral) {
 	pageBodyString = stringtool.ExtractBetween("grid-cell-container", "grid-footer-controls", pageBodyString)
 	gamesRawDataArray := strings.Split(pageBodyString, "class=\"grid-cell grid-cell--game\">")
 	gamesRawDataArray = append(gamesRawDataArray[:0], gamesRawDataArray[0+1:]...)
-	fmt.Println("ParseDiscountedGames - Found game pages = " + strconv.Itoa(pagesCount))
+	fmt.Println("ParseDiscountedGames - Found rows games on page = " + strconv.Itoa(pagesCount))
 	loadedGames, idCounter := extractGamesFromRawArray(gamesRawDataArray, 0)
-	fmt.Println("ParseDiscountedGames - LoadedGames game pages = " + strconv.Itoa(len(loadedGames)))
+	fmt.Println("ParseDiscountedGames - LoadedGames on page = " + strconv.Itoa(len(loadedGames)))
 	games = append(games, loadedGames...)
 
 	if startPageNumber < pagesCount {
 		counter := startPageNumber + 1
 		for counter <= pagesCount {
-			response, err := http.Get(baseURLSales + strconv.Itoa(counter) + baseURLSalesParam)
+			response, err := http.Get(fmt.Sprintf("%s%s%s", baseURLSales, strconv.Itoa(counter), baseURLSalesParam))
 			if err != nil {
 				log.Fatal("response err 2: ", err)
 			}
@@ -132,6 +185,10 @@ func parseDiscountedGames() (games []GameGeneral) {
 
 			// Copy data from the response to standard output
 			pageBody, err := ioutil.ReadAll(response.Body)
+			if err != nil {
+				log.Fatal("ReadAll error: ", err)
+			}
+
 			defer response.Body.Close()
 
 			pageBodyString := string(pageBody)
